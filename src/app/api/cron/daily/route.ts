@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { assertCronAuthorized } from "@/lib/cron-auth";
 import { getAppTimezone, requireEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import {
-  getTodayLocalDateKey,
-  isWithinDailySendWindow,
-} from "@/lib/daily-date";
+import { getTodayLocalDateKey } from "@/lib/daily-date";
 import { generateDailyContentForDateKey } from "@/lib/generate-daily-content";
 import { sendDailyDigestEmail } from "@/lib/send-daily-email";
 
@@ -14,9 +11,10 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * Vercel Cron is UTC-only (`vercel.json` uses `0 * * * *`).
- * We only run the expensive send between 09:00–09:14 in `APP_TIMEZONE`
- * to approximate a 9am local send across DST without maintaining two UTC crons.
+ * Vercel **Hobby** allows at most **one** cron invocation per day, so the schedule
+ * in `vercel.json` must be daily (UTC). Default `0 14 * * *` is ~09:00 in
+ * `America/New_York` during **EST** (UTC−5). For ~09:00 during **EDT**, use
+ * `0 13 * * *` instead. `APP_TIMEZONE` still defines which calendar day is “today”.
  */
 async function handle(request: Request) {
   try {
@@ -26,11 +24,6 @@ async function handle(request: Request) {
   }
 
   const timeZone = getAppTimezone();
-  const now = new Date();
-
-  if (!isWithinDailySendWindow(now, timeZone)) {
-    return NextResponse.json({ ok: true, skipped: "outside_send_window" });
-  }
 
   requireEnv("DATABASE_URL");
   requireEnv("OPENAI_API_KEY");
