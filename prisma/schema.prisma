@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model DailyContent {
+  id                 String      @id @default(cuid())
+  /// Calendar date in APP_TIMEZONE as YYYY-MM-DD
+  localDateKey       String      @unique
+  quote              String
+  story              String      @db.Text
+  imageSourceUrl     String
+  imageCompositedUrl String
+  unsplashAuthorName String?
+  unsplashAuthorUrl  String?
+  emailsSentAt       DateTime?
+  createdAt          DateTime    @default(now())
+  emailSends         EmailSend[]
+
+  @@index([localDateKey])
+}
+
+model Subscriber {
+  id                    String      @id @default(cuid())
+  email                 String      @unique
+  verifiedAt            DateTime?
+  verificationTokenHash String?
+  verificationSentAt    DateTime?
+  unsubscribeToken      String      @unique
+  unsubscribedAt        DateTime?
+  createdAt             DateTime    @default(now())
+  emailSends            EmailSend[]
+
+  @@index([verifiedAt, unsubscribedAt])
+}
+
+model EmailSend {
+  id             String    @id @default(cuid())
+  dailyContentId String
+  subscriberId   String
+  resendEmailId  String    @unique
+  sentAt         DateTime  @default(now())
+  deliveredAt    DateTime?
+  firstOpenedAt  DateTime?
+  openCount      Int       @default(0)
+  bouncedAt      DateTime?
+  complainedAt   DateTime?
+
+  dailyContent DailyContent @relation(fields: [dailyContentId], references: [id], onDelete: Cascade)
+  subscriber   Subscriber   @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@index([dailyContentId])
+  @@index([subscriberId])
+}
