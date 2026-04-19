@@ -60,10 +60,6 @@ export default async function Home({
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             Today&apos;s note
           </h1>
-          <p className="text-sm text-zinc-600">
-            Calendar day in <span className="font-mono">{timeZone}</span>:{" "}
-            <span className="font-mono">{localDateKey}</span>
-          </p>
         </header>
 
         {banner ? (
