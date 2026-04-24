@@ -11,6 +11,34 @@ const quotePayloadSchema = z.object({
   keywords: z.array(z.string().min(1).max(40)).min(1).max(4),
 });
 
+const THEMES = [
+  "growth mindset",
+  "resilience",
+  "consistency",
+  "gratitude",
+  "self-belief",
+  "focus",
+  "courage",
+  "discipline",
+  "new beginnings",
+  "calm confidence",
+];
+
+const STYLES = [
+  "minimal and direct",
+  "poetic",
+  "bold and energetic",
+  "warm and empathetic",
+  "reflective",
+  "cinematic",
+  "conversational",
+  "wisdom-like",
+];
+
+function pickRandom<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
 export async function generateDailyContentForDateKey(localDateKey: string) {
   const existing = await prisma.dailyContent.findUnique({
     where: { localDateKey },
@@ -28,26 +56,24 @@ export async function generateDailyContentForDateKey(localDateKey: string) {
     apiKey: deepseekApiKey,
   });
 
-  const recent = await prisma.dailyContent.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 14,
-    select: { quote: true, localDateKey: true },
-  });
+  const selectedTheme = pickRandom(THEMES);
+  const selectedStyle = pickRandom(STYLES);
 
   const quoteCompletion = await openai.chat.completions.create({
-    model: "deepseek-chat",
+    model: "deepseek-v4-flash",
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
         content:
-          "You write one original motivational quote per day. Avoid clichés repeated from the provided list. Return strict JSON with keys quote (string) and keywords (array of 1-3 short English nouns/adjectives for stock photo search, no people names).",
+          "You write one original motivational quote per day. Use the requested theme and writing style. Return strict JSON with keys quote (string) and keywords (array of 1-3 short English nouns/adjectives for stock photo search, no people names).",
       },
       {
         role: "user",
         content: JSON.stringify({
           localDateKey,
-          avoidQuotes: recent.map((r) => r.quote),
+          theme: selectedTheme,
+          style: selectedStyle,
         }),
       },
     ],
@@ -73,16 +99,16 @@ export async function generateDailyContentForDateKey(localDateKey: string) {
   );
 
   const storyCompletion = await openai.chat.completions.create({
-    model: "deepseek-chat",
+    model: "deepseek-v4-flash",
     messages: [
       {
         role: "system",
         content:
-          "Write a short, uplifting fictional story (180-320 words) that clearly connects to the given quote. Use plain paragraphs, no title, no markdown.",
+          "Write a short, uplifting fictional story (180-320 words) that clearly connects to the given quote, theme, and style. Use plain paragraphs, no title, no markdown.",
       },
       {
         role: "user",
-        content: `Quote:\n${parsed.quote}`,
+        content: `Theme: ${selectedTheme}\nStyle: ${selectedStyle}\nQuote:\n${parsed.quote}`,
       },
     ],
     temperature: 0.85,
