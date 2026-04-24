@@ -17,11 +17,16 @@ export async function generateDailyContentForDateKey(localDateKey: string) {
   });
   if (existing) return existing;
 
-  const openaiKey = requireEnv("OPENAI_API_KEY");
+  const deepseekApiUrl = requireEnv("DEEPSEEK_API_URL");
+  const deepseekApiKey = requireEnv("DEEPSEEK_API_KEY");
+  
   const unsplashKey = requireEnv("UNSPLASH_ACCESS_KEY");
   const blobToken = requireEnv("BLOB_READ_WRITE_TOKEN");
 
-  const openai = new OpenAI({ apiKey: openaiKey });
+  const openai = new OpenAI({
+    baseURL: deepseekApiUrl,
+    apiKey: deepseekApiKey,
+  });
 
   const recent = await prisma.dailyContent.findMany({
     orderBy: { createdAt: "desc" },
@@ -30,7 +35,7 @@ export async function generateDailyContentForDateKey(localDateKey: string) {
   });
 
   const quoteCompletion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "deepseek-chat",
     response_format: { type: "json_object" },
     messages: [
       {
@@ -68,7 +73,7 @@ export async function generateDailyContentForDateKey(localDateKey: string) {
   );
 
   const storyCompletion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "deepseek-chat",
     messages: [
       {
         role: "system",

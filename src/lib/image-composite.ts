@@ -1,4 +1,25 @@
 import sharp from "sharp";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+let interLatin600Base64 = "";
+
+function getEmbeddedInterFontFace() {
+  if (!interLatin600Base64) {
+    const fontPath = require.resolve(
+      "@fontsource/inter/files/inter-latin-600-normal.woff",
+    );
+    interLatin600Base64 = readFileSync(fontPath).toString("base64");
+  }
+
+  return `@font-face {
+  font-family: "InterEmbedded";
+  src: url("data:font/woff;base64,${interLatin600Base64}") format("woff");
+  font-weight: 600;
+  font-style: normal;
+}`;
+}
 
 function escapeXml(s: string) {
   return s
@@ -49,12 +70,15 @@ export async function compositeQuoteOnImage(
   const textSvg = lines
     .map(
       (line, i) =>
-        `<text x="50%" y="${startY + i * lineHeight}" text-anchor="middle" fill="#ffffff" font-size="${fontSize}" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-weight="600">${escapeXml(line)}</text>`,
+        `<text x="50%" y="${startY + i * lineHeight}" text-anchor="middle" fill="#ffffff" font-size="${fontSize}" font-family="InterEmbedded, sans-serif" font-weight="600">${escapeXml(line)}</text>`,
     )
     .join("\n");
 
   const svg = `
 <svg width="${width}" height="${overlayHeight}" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    ${getEmbeddedInterFontFace()}
+  </style>
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="rgba(0,0,0,0.05)"/>
