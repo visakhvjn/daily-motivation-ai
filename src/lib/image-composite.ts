@@ -1,14 +1,18 @@
 import sharp from "sharp";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import path from "node:path";
 
-const require = createRequire(import.meta.url);
 let interLatin600Base64 = "";
 
 function getEmbeddedInterFontFace() {
   if (!interLatin600Base64) {
-    const fontPath = require.resolve(
-      "@fontsource/inter/files/inter-latin-600-normal.woff",
+    const fontPath = path.join(
+      process.cwd(),
+      "node_modules",
+      "@fontsource",
+      "inter",
+      "files",
+      "inter-latin-600-normal.woff",
     );
     interLatin600Base64 = readFileSync(fontPath).toString("base64");
   }
