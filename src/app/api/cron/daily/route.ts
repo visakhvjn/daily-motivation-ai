@@ -26,7 +26,7 @@ async function handle(request: Request) {
   const timeZone = getAppTimezone();
 
   requireEnv("DATABASE_URL");
-  requireEnv("OPENAI_API_KEY");
+  requireEnv("GEMINI_API_KEY");
   requireEnv("UNSPLASH_ACCESS_KEY");
   requireEnv("BLOB_READ_WRITE_TOKEN");
   requireEnv("RESEND_API_KEY");
