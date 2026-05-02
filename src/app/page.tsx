@@ -1,28 +1,75 @@
+import type { Metadata } from "next";
 import { SubscribeForm } from "@/app/subscribe-form";
-import { getAppTimezone } from "@/lib/env";
-import { getTodayLocalDateKey } from "@/lib/daily-date";
+import { getAppUrl } from "@/lib/env";
+import {
+  buildDateHref,
+  firstSearchParam,
+  resolveHomeDailyContent,
+} from "@/lib/home-daily-content";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
-const LOCAL_DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-function firstSearchParam(value: string | string[] | undefined): string | undefined {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value[0];
-  return undefined;
+function truncateForMeta(text: string, maxLen: number): string {
+  const t = text.trim();
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, maxLen - 1).trimEnd()}…`;
 }
 
-function buildDateHref(dateKey: string, sp: Record<string, string | string[] | undefined>): string {
-  const params = new URLSearchParams();
-  params.set("date", dateKey);
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const sp = (await searchParams) ?? {};
+  const { content, targetDateKey, isDateParamValid } = await resolveHomeDailyContent(sp);
 
-  const subscribed = firstSearchParam(sp.subscribed);
-  if (subscribed) params.set("subscribed", subscribed);
+  const base = new URL("/", getAppUrl());
+  const dateParam = firstSearchParam(sp.date);
+  if (dateParam !== undefined && isDateParamValid) {
+    base.searchParams.set("date", targetDateKey);
+  }
 
-  const error = firstSearchParam(sp.error);
-  if (error) params.set("error", error);
+  if (!content) {
+    return {
+      title: "Daily Motivation",
+      description: "A daily motivational quote, image, and short story — by email.",
+      alternates: { canonical: base.pathname + base.search },
+      openGraph: {
+        title: "Daily Motivation",
+        description: "A daily motivational quote, image, and short story — by email.",
+        url: base,
+        type: "website",
+      },
+    };
+  }
 
-  return `/?${params.toString()}`;
+  const title = `Daily Motivation — ${content.localDateKey}`;
+  const description = truncateForMeta(content.quote, 200);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: base.pathname + base.search },
+    openGraph: {
+      title,
+      description,
+      url: base,
+      type: "article",
+      images: [
+        {
+          url: content.imageCompositedUrl,
+          alt: "Motivation image with quote",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [content.imageCompositedUrl],
+    },
+  };
 }
 
 function bannerFromSearchParams(sp: Record<string, string | string[] | undefined>) {
@@ -46,73 +93,37 @@ export default async function Home({
   const sp = (await searchParams) ?? {};
   const banner = bannerFromSearchParams(sp);
 
-  const timeZone = getAppTimezone();
-  const todayLocalDateKey = getTodayLocalDateKey(timeZone);
-  const requestedDate = firstSearchParam(sp.date);
-  const hasDateParam = requestedDate !== undefined;
-  const isDateParamValid = !hasDateParam || LOCAL_DATE_KEY_REGEX.test(requestedDate);
-  const targetDateKey = isDateParamValid && requestedDate ? requestedDate : todayLocalDateKey;
-  const isTodayRequest = targetDateKey === todayLocalDateKey;
+  const {
+    content,
+    targetDateKey,
+    isTodayRequest,
+    usedTodayFallback,
+    isDateParamValid,
+  } = await resolveHomeDailyContent(sp);
 
-  let content: {
-    localDateKey: string;
-    quote: string;
-    story: string;
-    imageCompositedUrl: string;
-    imageSourceUrl: string;
-    unsplashAuthorName: string | null;
-    unsplashAuthorUrl: string | null;
-  } | null = null;
   let hasPrevious = false;
   let hasNext = false;
   let previousDateKey: string | null = null;
   let nextDateKey: string | null = null;
-  let usedTodayFallback = false;
 
-  if (process.env.DATABASE_URL && isDateParamValid) {
-    const selectFields = {
-      localDateKey: true,
-      quote: true,
-      story: true,
-      imageCompositedUrl: true,
-      imageSourceUrl: true,
-      unsplashAuthorName: true,
-      unsplashAuthorUrl: true,
-    } as const;
-
-    content = await prisma.dailyContent.findUnique({
-      where: { localDateKey: targetDateKey },
-      select: selectFields,
-    });
-
-    if (!content && isTodayRequest) {
-      content = await prisma.dailyContent.findFirst({
-        where: { localDateKey: { lt: todayLocalDateKey } },
+  if (process.env.DATABASE_URL && content) {
+    const [previous, next] = await Promise.all([
+      prisma.dailyContent.findFirst({
+        where: { localDateKey: { lt: content.localDateKey } },
         orderBy: { localDateKey: "desc" },
-        select: selectFields,
-      });
-      usedTodayFallback = Boolean(content);
-    }
+        select: { localDateKey: true },
+      }),
+      prisma.dailyContent.findFirst({
+        where: { localDateKey: { gt: content.localDateKey } },
+        orderBy: { localDateKey: "asc" },
+        select: { localDateKey: true },
+      }),
+    ]);
 
-    if (content) {
-      const [previous, next] = await Promise.all([
-        prisma.dailyContent.findFirst({
-          where: { localDateKey: { lt: content.localDateKey } },
-          orderBy: { localDateKey: "desc" },
-          select: { localDateKey: true },
-        }),
-        prisma.dailyContent.findFirst({
-          where: { localDateKey: { gt: content.localDateKey } },
-          orderBy: { localDateKey: "asc" },
-          select: { localDateKey: true },
-        }),
-      ]);
-
-      previousDateKey = previous?.localDateKey ?? null;
-      nextDateKey = next?.localDateKey ?? null;
-      hasPrevious = previousDateKey !== null;
-      hasNext = nextDateKey !== null;
-    }
+    previousDateKey = previous?.localDateKey ?? null;
+    nextDateKey = next?.localDateKey ?? null;
+    hasPrevious = previousDateKey !== null;
+    hasNext = nextDateKey !== null;
   }
 
   return (

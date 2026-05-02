@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { getAppUrl } from "@/lib/env";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,6 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getAppUrl()),
   title: "Daily Motivation",
   description: "A daily motivational quote, image, and short story — by email.",
 };
