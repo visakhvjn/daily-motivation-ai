@@ -44,29 +44,31 @@ export async function generateMetadata({
     };
   }
 
-  const title = `Daily Motivation — ${content.localDateKey}`;
-  const description = truncateForMeta(content.quote, 200);
+  const quoteTitle = truncateForMeta(content.quote, 200);
+  const storyDescription = truncateForMeta(content.story, 2000);
+  const titleForTab = `${truncateForMeta(content.quote, 72)} · Daily Motivation`;
 
   return {
-    title,
-    description,
+    title: titleForTab,
+    description: storyDescription,
     alternates: { canonical: base.pathname + base.search },
     openGraph: {
-      title,
-      description,
+      title: quoteTitle,
+      description: storyDescription,
+      siteName: "Daily Motivation",
       url: base,
       type: "article",
       images: [
         {
           url: content.imageCompositedUrl,
-          alt: "Motivation image with quote",
+          alt: truncateForMeta(content.quote, 120),
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title,
-      description,
+      title: quoteTitle,
+      description: storyDescription,
       images: [content.imageCompositedUrl],
     },
   };
