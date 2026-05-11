@@ -7,6 +7,7 @@ import {
   resolveHomeDailyContent,
 } from "@/lib/home-daily-content";
 import { prisma } from "@/lib/prisma";
+import { getShareImageUrl } from "@/lib/share-image-url";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ export async function generateMetadata({
   const quoteTitle = truncateForMeta(content.quote, 200);
   const storyDescription = truncateForMeta(content.story, 2000);
   const titleForTab = `${truncateForMeta(content.quote, 72)} · Daily Motivation`;
+  const previewImageUrl = getShareImageUrl(content.localDateKey);
 
   return {
     title: titleForTab,
@@ -60,7 +62,7 @@ export async function generateMetadata({
       type: "article",
       images: [
         {
-          url: content.imageCompositedUrl,
+          url: previewImageUrl,
           alt: truncateForMeta(content.quote, 120),
         },
       ],
@@ -69,7 +71,7 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: quoteTitle,
       description: storyDescription,
-      images: [content.imageCompositedUrl],
+      images: [previewImageUrl],
     },
   };
 }
@@ -160,7 +162,7 @@ export default async function Home({
             {/* eslint-disable-next-line @next/next/no-img-element -- remote Vercel Blob URL */}
             <img
               src={content.imageCompositedUrl}
-              alt="Motivation image with quote"
+              alt="Daily motivation image"
               className="w-full rounded-2xl border border-zinc-200 shadow-sm"
             />
             <blockquote className="text-xl font-semibold leading-snug text-zinc-900">
