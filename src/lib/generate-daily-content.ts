@@ -2,7 +2,6 @@ import { put } from "@vercel/blob";
 import { z } from "zod";
 import { requireEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { compositeQuoteOnImage } from "@/lib/image-composite";
 import { downloadImage, searchUnsplashPhoto } from "@/lib/unsplash";
 
 const quotePayloadSchema = z.object({
@@ -129,14 +128,13 @@ export async function generateDailyContentForDateKey(localDateKey: string) {
 
   const photo = await searchUnsplashPhoto(unsplashKey, unsplashQuery);
   const imageBuffer = await downloadImage(photo.downloadUrl);
-  const composited = await compositeQuoteOnImage(imageBuffer, parsed.quote);
 
   const blob = await put(
-    `daily/${localDateKey}.png`,
-    composited,
+    `daily/${localDateKey}.jpg`,
+    imageBuffer,
     {
       access: "public",
-      contentType: "image/png",
+      contentType: "image/jpeg",
       token: blobToken,
     },
   );

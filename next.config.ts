@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
-  serverExternalPackages: ["sharp", "@prisma/client", "pg"],
+  serverExternalPackages: ["@prisma/client", "pg"],
 };
 
 export default nextConfig;
