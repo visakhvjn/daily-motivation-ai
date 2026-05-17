@@ -33,8 +33,113 @@ const STYLES = [
   "wisdom-like",
 ];
 
+type StoryPromptContext = {
+  localDateKey: string;
+  theme: string;
+  style: string;
+  quote: string;
+};
+
+type StoryPromptType = {
+  id: string;
+  temperature: number;
+  buildPrompt: (ctx: StoryPromptContext) => string;
+};
+
+const STORY_PROMPT_TYPES: StoryPromptType[] = [
+  {
+    id: "fictional",
+    temperature: 0.85,
+    buildPrompt: () =>
+      [
+        "Write a short, uplifting fictional story.",
+        "Invent relatable characters and a clear arc: struggle, turn, quiet victory.",
+        "It must clearly connect to the given quote, theme, and style.",
+      ].join("\n"),
+  },
+  {
+    id: "funny",
+    temperature: 0.95,
+    buildPrompt: () =>
+      [
+        "Write a short humorous story with gentle wit and a warm, optimistic ending.",
+        "Use everyday situations, mild irony, or a surprising twist — never mean-spirited or crude.",
+        "Keep it workplace-safe. The motivational message of the quote should land in the final beat.",
+      ].join("\n"),
+  },
+  {
+    id: "historical",
+    temperature: 0.75,
+    buildPrompt: () =>
+      [
+        "Write a short narrative based on a well-documented true episode from history.",
+        "Name the era and key figures. Stick to widely accepted facts; do not invent historical events.",
+        "Draw out the human lesson and tie it clearly to the quote, theme, and style.",
+      ].join("\n"),
+  },
+  {
+    id: "current-affairs",
+    temperature: 0.88,
+    buildPrompt: ({ localDateKey }) =>
+      [
+        "Write a short narrative inspired by real-world currents around the given date.",
+        `Anchor your tone to the period of localDateKey (${localDateKey}).`,
+        "You may reference broad themes (science, community, climate resilience, creativity, sportsmanship, etc.) without citing specific unverified headlines.",
+        "Stay non-partisan, hopeful, and respectful. Connect clearly to the quote, theme, and style.",
+      ].join("\n"),
+  },
+  {
+    id: "biographical",
+    temperature: 0.8,
+    buildPrompt: () =>
+      [
+        "Write a short narrative about a real person’s documented turning point or quiet act of courage.",
+        "Use a figure widely known from biography or public record. Do not fabricate biographical facts.",
+        "Focus on one vivid moment and link its lesson to the quote, theme, and style.",
+      ].join("\n"),
+  },
+  {
+    id: "parable",
+    temperature: 0.9,
+    buildPrompt: () =>
+      [
+        "Write a short allegorical parable with a timeless, lightly mythical setting.",
+        "Use simple symbols and a moral that clearly echoes the quote, theme, and style.",
+      ].join("\n"),
+  },
+];
+
+const STORY_PROMPT_FOOTER = [
+  "Use plain paragraphs, no title, no markdown.",
+  "Target 180-320 words.",
+];
+
 function pickRandom<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+function pickStoryPromptTypeForDateKey(localDateKey: string): StoryPromptType {
+  let hash = 0;
+  for (let i = 0; i < localDateKey.length; i++) {
+    hash = (hash * 31 + localDateKey.charCodeAt(i)) >>> 0;
+  }
+  return STORY_PROMPT_TYPES[hash % STORY_PROMPT_TYPES.length];
+}
+
+function buildStoryPrompt(
+  storyType: StoryPromptType,
+  ctx: StoryPromptContext,
+): string {
+  return [
+    storyType.buildPrompt(ctx),
+    "",
+    ...STORY_PROMPT_FOOTER,
+    "",
+    `Theme: ${ctx.theme}`,
+    `Style: ${ctx.style}`,
+    `Quote: ${ctx.quote}`,
+    `localDateKey: ${ctx.localDateKey}`,
+  ].join("\n");
 }
 
 function extractTextFromGeminiResponse(data: unknown): string {
@@ -139,20 +244,19 @@ export async function generateDailyContentForDateKey(localDateKey: string) {
     },
   );
 
-  const storyPrompt = [
-    "Write a short, uplifting fictional story (180-320 words).",
-    "It must clearly connect to the given quote, theme, and style.",
-    "Use plain paragraphs, no title, no markdown.",
-    "",
-    `Theme: ${selectedTheme}`,
-    `Style: ${selectedStyle}`,
-    `Quote: ${parsed.quote}`,
-  ].join("\n");
+  const storyContext: StoryPromptContext = {
+    localDateKey,
+    theme: selectedTheme,
+    style: selectedStyle,
+    quote: parsed.quote,
+  };
+  const storyType = pickStoryPromptTypeForDateKey(localDateKey);
+  const storyPrompt = buildStoryPrompt(storyType, storyContext);
   const storyResponse = await callGemini(
     geminiApiKey,
     "gemini-2.5-flash-lite",
     storyPrompt,
-    0.85,
+    storyType.temperature,
   );
 
   const story = extractTextFromGeminiResponse(storyResponse);
