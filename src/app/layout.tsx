@@ -20,6 +20,11 @@ export const metadata: Metadata = {
   description: "A daily motivational quote, image, and short story — by email.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,7 +35,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col font-sans">
+      <body className="flex min-h-full min-w-0 flex-col overflow-x-hidden font-sans">
         {children}
         <SiteFooter />
       </body>

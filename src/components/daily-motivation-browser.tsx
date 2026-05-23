@@ -2,12 +2,15 @@
 
 import { format, parseISO } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
+import { SubscribeCard } from "@/components/subscribe-card";
 import {
   buildDateHref,
   type HomeDailyArchiveItem,
   type HomeDailyContent,
 } from "@/lib/home-daily-types";
+
+const PAST_ISSUES_LIMIT = 5;
 
 function truncateQuote(text: string, maxLen: number): string {
   const t = text.trim();
@@ -38,26 +41,30 @@ function DailyMotivationDetail({
   usedTodayFallback: boolean;
 }) {
   return (
-    <article className="flex min-w-0 flex-col gap-8 rounded-3xl border border-[var(--surface-border)] bg-white/90 p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur-sm sm:p-8">
+    <article className="flex min-w-0 flex-col gap-5 rounded-2xl border border-[var(--surface-border)] bg-white/90 p-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur-sm sm:gap-6 sm:rounded-3xl sm:p-6">
       {usedTodayFallback ? (
-        <p className="rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 sm:px-4 sm:py-3">
           Showing the latest available quote while today&apos;s quote is still being
           generated.
         </p>
       ) : null}
-      {/* eslint-disable-next-line @next/next/no-img-element -- remote Vercel Blob URL */}
-      <img
-        src={content.imageCompositedUrl}
-        alt="Daily motivation image"
-        className="w-full rounded-2xl shadow-md ring-1 ring-zinc-900/5"
-      />
-      <blockquote className="border-l-4 border-violet-500 pl-5 text-2xl font-semibold leading-snug tracking-tight text-zinc-900 sm:text-3xl">
+      <figure className="mx-auto w-full max-w-full overflow-hidden rounded-xl bg-zinc-100/80 sm:rounded-2xl">
+        {/* eslint-disable-next-line @next/next/no-img-element -- remote Vercel Blob URL */}
+        <img
+          src={content.imageCompositedUrl}
+          alt="Daily motivation image"
+          width={1200}
+          height={1500}
+          className="mx-auto block h-auto max-h-[min(52vw,15rem)] w-full max-w-full object-contain sm:max-h-[20rem] md:max-h-[24rem]"
+        />
+      </figure>
+      <blockquote className="break-words border-l-4 border-violet-500 pl-4 text-xl font-semibold leading-snug tracking-tight text-zinc-900 sm:pl-5 sm:text-2xl">
         {content.quote}
       </blockquote>
-      <div className="max-w-none whitespace-pre-wrap text-base leading-[1.75] text-zinc-600">
+      <div className="max-w-none break-words whitespace-pre-wrap text-[0.9375rem] leading-[1.7] text-zinc-600 sm:text-base sm:leading-[1.75]">
         {content.story}
       </div>
-      <p className="text-xs text-zinc-400">
+      <p className="text-xs leading-relaxed text-zinc-400">
         Photo from{" "}
         <a
           className="text-zinc-600 underline decoration-zinc-300 underline-offset-2 transition-colors hover:text-violet-700"
@@ -87,7 +94,7 @@ function DailyMotivationDetail({
   );
 }
 
-function ArchiveScroller({
+function PastIssuesList({
   items,
   selectedDateKey,
   todayLocalDateKey,
@@ -98,69 +105,56 @@ function ArchiveScroller({
   todayLocalDateKey: string;
   onSelect: (dateKey: string) => void;
 }) {
-  const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-
-  useEffect(() => {
-    const el = itemRefs.current[selectedDateKey];
-    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [selectedDateKey]);
-
   if (items.length === 0) {
     return (
-      <aside className="rounded-2xl border border-dashed border-zinc-300/80 bg-white/60 px-4 py-8 text-center text-sm text-zinc-500">
-        Past issues will appear here once they are published.
-      </aside>
+      <div className="rounded-2xl border border-dashed border-zinc-300/80 bg-white/60 px-4 py-6 text-center text-sm text-zinc-500">
+        More past issues will appear here as they are published.
+      </div>
     );
   }
 
   return (
-    <aside className="flex min-h-0 flex-col gap-3 lg:sticky lg:top-8 lg:max-h-[calc(100vh-6rem)]">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
-          Past issues
-        </h2>
-        <span className="text-xs text-zinc-400">{items.length}</span>
-      </div>
-      <div className="flex gap-3 overflow-x-auto pb-2 lg:-mx-1 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:px-1 lg:pb-1">
+    <div className="flex min-w-0 flex-col">
+      <ul className="flex min-w-0 flex-col gap-2">
         {items.map((item) => {
           const isSelected = item.localDateKey === selectedDateKey;
           return (
-            <button
-              key={item.localDateKey}
-              ref={(node) => {
-                itemRefs.current[item.localDateKey] = node;
-              }}
-              type="button"
-              onClick={() => onSelect(item.localDateKey)}
-              className={`flex w-[min(100%,280px)] shrink-0 gap-3 rounded-2xl border p-3 text-left transition-all lg:w-full ${
-                isSelected
-                  ? "border-violet-300 bg-violet-50 shadow-sm ring-2 ring-violet-500/20"
-                  : "border-zinc-200/80 bg-white/90 hover:border-violet-200 hover:bg-violet-50/50"
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- remote Vercel Blob URL */}
-              <img
-                src={item.imageCompositedUrl}
-                alt=""
-                className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-zinc-900/5"
-              />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span
-                  className={`text-xs font-semibold uppercase tracking-wide ${
-                    isSelected ? "text-violet-700" : "text-zinc-500"
-                  }`}
-                >
-                  {formatDisplayDate(item.localDateKey, todayLocalDateKey)}
-                </span>
-                <span className="line-clamp-2 text-sm leading-snug text-zinc-800">
-                  {truncateQuote(item.quote, 88)}
-                </span>
-              </div>
-            </button>
+            <li key={item.localDateKey}>
+              <button
+                type="button"
+                onClick={() => onSelect(item.localDateKey)}
+                className={`flex w-full min-w-0 gap-3 rounded-xl border p-2.5 text-left transition-colors sm:p-3 ${
+                  isSelected
+                    ? "border-violet-300 bg-violet-50 ring-2 ring-violet-500/15"
+                    : "border-zinc-200/80 bg-white/90 hover:border-violet-200 hover:bg-violet-50/50"
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- remote Vercel Blob URL */}
+                <img
+                  src={item.imageCompositedUrl}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-12 w-12 shrink-0 rounded-lg object-cover ring-1 ring-zinc-900/5 sm:h-14 sm:w-14"
+                />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span
+                    className={`text-[0.6875rem] font-semibold uppercase tracking-wide sm:text-xs ${
+                      isSelected ? "text-violet-700" : "text-zinc-500"
+                    }`}
+                  >
+                    {formatDisplayDate(item.localDateKey, todayLocalDateKey)}
+                  </span>
+                  <span className="line-clamp-2 text-sm leading-snug text-zinc-800">
+                    {truncateQuote(item.quote, 72)}
+                  </span>
+                </div>
+              </button>
+            </li>
           );
         })}
-      </div>
-    </aside>
+      </ul>
+    </div>
   );
 }
 
@@ -204,36 +198,41 @@ export function DailyMotivationBrowser({
     !dateFromUrl &&
     selectedContent?.localDateKey === initialContent?.localDateKey;
 
-  const heading =
-    selectedDateKey === todayLocalDateKey && !dateFromUrl
-      ? "Today's note"
-      : format(parseISO(selectedDateKey), "EEEE, MMMM d");
+  const activeArchiveKey = selectedContent?.localDateKey ?? selectedDateKey;
+
+  const recentPastItems = useMemo(
+    () =>
+      archiveItems
+        .filter((item) => item.localDateKey !== activeArchiveKey)
+        .slice(0, PAST_ISSUES_LIMIT),
+    [activeArchiveKey, archiveItems],
+  );
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] lg:items-start lg:gap-8">
-      <div className="flex min-w-0 flex-col gap-4">
-        <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
-          {heading}
-        </h2>
+    <div className="mx-auto grid w-full min-w-0 max-w-5xl gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(240px,280px)] lg:items-start lg:gap-10">
+      <div className="flex min-w-0 flex-col">
         {selectedContent ? (
           <DailyMotivationDetail
             content={selectedContent}
             usedTodayFallback={showTodayFallback}
           />
         ) : (
-          <div className="rounded-3xl border border-dashed border-zinc-300/80 bg-white/70 px-8 py-14 text-center text-sm leading-relaxed text-zinc-600 shadow-sm backdrop-blur-sm">
+          <div className="rounded-2xl border border-dashed border-zinc-300/80 bg-white/70 px-5 py-10 text-center text-sm leading-relaxed text-zinc-600 shadow-sm backdrop-blur-sm sm:rounded-3xl sm:px-8 sm:py-14">
             {emptyMessage ??
               `No quote is available for ${format(parseISO(selectedDateKey), "MMMM d, yyyy")}.`}
           </div>
         )}
       </div>
 
-      <ArchiveScroller
-        items={archiveItems}
-        selectedDateKey={selectedContent?.localDateKey ?? selectedDateKey}
-        todayLocalDateKey={todayLocalDateKey}
-        onSelect={selectDate}
-      />
+      <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-8">
+        <PastIssuesList
+          items={recentPastItems}
+          selectedDateKey={activeArchiveKey}
+          todayLocalDateKey={todayLocalDateKey}
+          onSelect={selectDate}
+        />
+        <SubscribeCard />
+      </aside>
     </div>
   );
 }
