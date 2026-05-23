@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { SubscribeForm } from "@/app/subscribe-form";
 import { DailyMotivationBrowser } from "@/components/daily-motivation-browser";
 import { getAppTimezone, getAppUrl } from "@/lib/env";
 import { getTodayLocalDateKey } from "@/lib/daily-date";
@@ -136,7 +135,7 @@ export default async function Home({
       : emptyMessageForHome(hasDatabase, isDateParamValid, isTodayRequest, targetDateKey);
 
   return (
-    <div className="relative min-h-full flex-1 overflow-hidden bg-[var(--background)] text-zinc-900">
+    <div className="relative isolate min-h-full flex-1 bg-[var(--background)] text-zinc-900">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(124,58,237,0.12),transparent)]"
@@ -150,28 +149,27 @@ export default async function Home({
         className="pointer-events-none absolute -left-24 bottom-32 h-64 w-64 rounded-full bg-amber-100/40 blur-3xl"
       />
 
-      <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 py-16 sm:py-20">
-        <header className="flex flex-col gap-4">
+      <main className="relative mx-auto flex w-full min-w-0 max-w-5xl flex-col items-center gap-8 px-4 py-10 sm:gap-10 sm:px-6 sm:py-14 lg:py-16">
+        <header className="flex w-full max-w-2xl flex-col items-center gap-3 text-center sm:gap-4">
           <span className="inline-flex w-fit items-center rounded-full border border-violet-200/80 bg-violet-50 px-3 py-1 text-xs font-semibold tracking-wide text-violet-800 uppercase">
             Daily Motivation
           </span>
-          <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             Your daily dose of motivation
           </h1>
-          <p className="max-w-xl text-base leading-relaxed text-zinc-600">
-            Pick any past issue from the list, or read today&apos;s quote, image,
-            and short story — delivered to your inbox each morning.
+          <p className="text-sm leading-relaxed text-zinc-600 sm:text-base">
+            Read today&apos;s quote and story, or pick a recent issue from the list.
           </p>
         </header>
 
         {banner ? (
           <div
             role="status"
-            className={
+            className={`w-full max-w-5xl ${
               banner.tone === "success"
-                ? "rounded-2xl border border-emerald-200/80 bg-emerald-50/90 px-5 py-4 text-sm text-emerald-900 shadow-sm"
-                : "rounded-2xl border border-red-200/80 bg-red-50/90 px-5 py-4 text-sm text-red-900 shadow-sm"
-            }
+                ? "rounded-2xl border border-emerald-200/80 bg-emerald-50/90 px-5 py-4 text-center text-sm text-emerald-900 shadow-sm"
+                : "rounded-2xl border border-red-200/80 bg-red-50/90 px-5 py-4 text-center text-sm text-red-900 shadow-sm"
+            }`}
           >
             {banner.text}
           </div>
@@ -179,8 +177,8 @@ export default async function Home({
 
         <Suspense
           fallback={
-            <div className="rounded-3xl border border-zinc-200/80 bg-white/70 px-8 py-20 text-center text-sm text-zinc-500">
-              Loading issues…
+            <div className="w-full max-w-5xl rounded-3xl border border-zinc-200/80 bg-white/70 px-8 py-20 text-center text-sm text-zinc-500">
+              Loading…
             </div>
           }
         >
@@ -194,17 +192,6 @@ export default async function Home({
             emptyMessage={emptyMessage}
           />
         </Suspense>
-
-        <section className="rounded-3xl border border-violet-200/60 bg-gradient-to-br from-white via-white to-violet-50/80 p-8 shadow-[0_8px_30px_rgba(124,58,237,0.08)]">
-          <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
-            Get the daily email
-          </h2>
-          <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-600">
-            Enter your email and confirm via the link we send you. We only mail
-            verified subscribers.
-          </p>
-          <SubscribeForm />
-        </section>
       </main>
     </div>
   );

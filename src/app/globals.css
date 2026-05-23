@@ -29,3 +29,12 @@ body {
   background: var(--accent-muted);
   color: var(--foreground);
 }
+
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

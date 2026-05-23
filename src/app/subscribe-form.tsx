@@ -41,11 +41,11 @@ export function SubscribeForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-6 flex w-full max-w-md flex-col gap-4">
+    <form onSubmit={onSubmit} className="mt-5 flex w-full min-w-0 max-w-full flex-col gap-4 sm:mt-6 sm:max-w-md">
       <label className="text-sm font-medium text-zinc-700" htmlFor="email">
         Email address
       </label>
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex w-full min-w-0 flex-col gap-3">
         <input
           id="email"
           name="email"
@@ -54,13 +54,13 @@ export function SubscribeForm() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-12 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 shadow-sm outline-none transition-shadow placeholder:text-zinc-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-500/15"
+          className="min-h-[3rem] w-full min-w-0 flex-1 rounded-xl border border-zinc-200/90 bg-white px-4 py-3 text-base leading-normal text-zinc-900 shadow-sm outline-none transition-[box-shadow,border-color] placeholder:text-zinc-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-500/12 sm:px-5"
           placeholder="you@example.com"
         />
         <button
           type="submit"
           disabled={status === "loading"}
-          className="inline-flex h-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 disabled:opacity-60"
+          className="inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-violet-600 px-5 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 disabled:opacity-60 sm:w-auto sm:shrink-0"
         >
           {status === "loading" ? "Submitting…" : "Subscribe"}
         </button>
