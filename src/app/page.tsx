@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { SubscribeForm } from "@/app/subscribe-form";
-import { getAppUrl } from "@/lib/env";
+import { DailyMotivationBrowser } from "@/components/daily-motivation-browser";
+import { getAppTimezone, getAppUrl } from "@/lib/env";
+import { getTodayLocalDateKey } from "@/lib/daily-date";
 import {
-  buildDateHref,
+  fetchAllHomeDailyContent,
   firstSearchParam,
   resolveHomeDailyContent,
 } from "@/lib/home-daily-content";
-import { prisma } from "@/lib/prisma";
 import { getShareImageUrl } from "@/lib/share-image-url";
 
 export const dynamic = "force-dynamic";
@@ -89,6 +91,24 @@ function bannerFromSearchParams(sp: Record<string, string | string[] | undefined
   return null;
 }
 
+function emptyMessageForHome(
+  hasDatabase: boolean,
+  isDateParamValid: boolean,
+  isTodayRequest: boolean,
+  targetDateKey: string,
+): string | null {
+  if (!hasDatabase) {
+    return "Set DATABASE_URL to load today’s content from the database.";
+  }
+  if (!isDateParamValid) {
+    return "Invalid date format. Use YYYY-MM-DD.";
+  }
+  if (!isTodayRequest) {
+    return `No quote is available for ${targetDateKey}.`;
+  }
+  return "No issue has been generated for today yet. The scheduled job will create it automatically.";
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -96,130 +116,90 @@ export default async function Home({
 }) {
   const sp = (await searchParams) ?? {};
   const banner = bannerFromSearchParams(sp);
+  const todayLocalDateKey = getTodayLocalDateKey(getAppTimezone());
 
-  const {
-    content,
-    targetDateKey,
-    isTodayRequest,
-    usedTodayFallback,
-    isDateParamValid,
-  } = await resolveHomeDailyContent(sp);
+  const [
+    {
+      content,
+      targetDateKey,
+      isTodayRequest,
+      usedTodayFallback,
+      isDateParamValid,
+    },
+    { items: archiveItems, byDate: contentByDate },
+  ] = await Promise.all([resolveHomeDailyContent(sp), fetchAllHomeDailyContent()]);
 
-  let hasPrevious = false;
-  let hasNext = false;
-  let previousDateKey: string | null = null;
-  let nextDateKey: string | null = null;
-
-  if (process.env.DATABASE_URL && content) {
-    const [previous, next] = await Promise.all([
-      prisma.dailyContent.findFirst({
-        where: { localDateKey: { lt: content.localDateKey } },
-        orderBy: { localDateKey: "desc" },
-        select: { localDateKey: true },
-      }),
-      prisma.dailyContent.findFirst({
-        where: { localDateKey: { gt: content.localDateKey } },
-        orderBy: { localDateKey: "asc" },
-        select: { localDateKey: true },
-      }),
-    ]);
-
-    previousDateKey = previous?.localDateKey ?? null;
-    nextDateKey = next?.localDateKey ?? null;
-    hasPrevious = previousDateKey !== null;
-    hasNext = nextDateKey !== null;
-  }
+  const hasDatabase = Boolean(process.env.DATABASE_URL);
+  const emptyMessage =
+    content || archiveItems.length > 0
+      ? null
+      : emptyMessageForHome(hasDatabase, isDateParamValid, isTodayRequest, targetDateKey);
 
   return (
-    <div className="min-h-full bg-zinc-50 text-zinc-900">
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-6 py-14">
-        <header className="flex flex-col gap-3">
-          <p className="text-sm font-medium text-zinc-500">Daily Motivation</p>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Today&apos;s note
+    <div className="relative min-h-full flex-1 overflow-hidden bg-[var(--background)] text-zinc-900">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(124,58,237,0.12),transparent)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-32 top-40 h-72 w-72 rounded-full bg-violet-200/30 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-24 bottom-32 h-64 w-64 rounded-full bg-amber-100/40 blur-3xl"
+      />
+
+      <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 py-16 sm:py-20">
+        <header className="flex flex-col gap-4">
+          <span className="inline-flex w-fit items-center rounded-full border border-violet-200/80 bg-violet-50 px-3 py-1 text-xs font-semibold tracking-wide text-violet-800 uppercase">
+            Daily Motivation
+          </span>
+          <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+            Your daily dose of motivation
           </h1>
+          <p className="max-w-xl text-base leading-relaxed text-zinc-600">
+            Pick any past issue from the list, or read today&apos;s quote, image,
+            and short story — delivered to your inbox each morning.
+          </p>
         </header>
 
         {banner ? (
           <div
+            role="status"
             className={
               banner.tone === "success"
-                ? "rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
-                : "rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"
+                ? "rounded-2xl border border-emerald-200/80 bg-emerald-50/90 px-5 py-4 text-sm text-emerald-900 shadow-sm"
+                : "rounded-2xl border border-red-200/80 bg-red-50/90 px-5 py-4 text-sm text-red-900 shadow-sm"
             }
           >
             {banner.text}
           </div>
         ) : null}
 
-        {content ? (
-          <article className="flex flex-col gap-6">
-            {usedTodayFallback ? (
-              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                Showing the latest available quote while today&apos;s quote is still being generated.
-              </p>
-            ) : null}
-            {/* eslint-disable-next-line @next/next/no-img-element -- remote Vercel Blob URL */}
-            <img
-              src={content.imageCompositedUrl}
-              alt="Daily motivation image"
-              className="w-full rounded-2xl border border-zinc-200 shadow-sm"
-            />
-            <blockquote className="text-xl font-semibold leading-snug text-zinc-900">
-              {content.quote}
-            </blockquote>
-            <div className="max-w-none whitespace-pre-wrap text-base leading-relaxed text-zinc-700">
-              {content.story}
+        <Suspense
+          fallback={
+            <div className="rounded-3xl border border-zinc-200/80 bg-white/70 px-8 py-20 text-center text-sm text-zinc-500">
+              Loading issues…
             </div>
-            <p className="text-xs text-zinc-500">
-              Photo from{" "}
-              <a className="underline" href={content.imageSourceUrl}>
-                Unsplash
-              </a>
-              {content.unsplashAuthorName ? (
-                <>
-                  {" "}
-                  by{" "}
-                  <a
-                    className="underline"
-                    href={content.unsplashAuthorUrl ?? content.imageSourceUrl}
-                  >
-                    {content.unsplashAuthorName}
-                  </a>
-                </>
-              ) : null}
-              .
-            </p>
-            <nav className="flex items-center justify-between border-t border-zinc-200 pt-4 text-sm font-medium">
-              {hasPrevious && previousDateKey ? (
-                <a className="underline" href={buildDateHref(previousDateKey, sp)}>
-                  Previous quote
-                </a>
-              ) : (
-                <span />
-              )}
-              {hasNext && nextDateKey ? (
-                <a className="underline" href={buildDateHref(nextDateKey, sp)}>
-                  Next quote
-                </a>
-              ) : null}
-            </nav>
-          </article>
-        ) : (
-          <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center text-sm text-zinc-600">
-            {process.env.DATABASE_URL
-              ? !isDateParamValid
-                ? "Invalid date format. Use YYYY-MM-DD."
-                : !isTodayRequest
-                  ? `No quote is available for ${targetDateKey}.`
-                  : "No issue has been generated for today yet. The scheduled job will create it automatically."
-              : "Set DATABASE_URL to load today’s content from the database."}
-          </div>
-        )}
+          }
+        >
+          <DailyMotivationBrowser
+            archiveItems={archiveItems}
+            contentByDate={contentByDate}
+            initialContent={content}
+            initialDateKey={content?.localDateKey ?? targetDateKey}
+            todayLocalDateKey={todayLocalDateKey}
+            usedTodayFallback={usedTodayFallback}
+            emptyMessage={emptyMessage}
+          />
+        </Suspense>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">Get the daily email</h2>
-          <p className="mt-2 text-sm text-zinc-600">
+        <section className="rounded-3xl border border-violet-200/60 bg-gradient-to-br from-white via-white to-violet-50/80 p-8 shadow-[0_8px_30px_rgba(124,58,237,0.08)]">
+          <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
+            Get the daily email
+          </h2>
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-600">
             Enter your email and confirm via the link we send you. We only mail
             verified subscribers.
           </p>

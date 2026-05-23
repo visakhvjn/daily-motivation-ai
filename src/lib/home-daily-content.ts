@@ -1,24 +1,16 @@
 import { getAppTimezone } from "@/lib/env";
 import { getTodayLocalDateKey } from "@/lib/daily-date";
+import {
+  type HomeDailyArchiveItem,
+  type HomeDailyContent,
+  firstSearchParam,
+} from "@/lib/home-daily-types";
 import { prisma } from "@/lib/prisma";
 
+export type { HomeDailyArchiveItem, HomeDailyContent } from "@/lib/home-daily-types";
+export { buildDateHref, firstSearchParam } from "@/lib/home-daily-types";
+
 const LOCAL_DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-export function firstSearchParam(value: string | string[] | undefined): string | undefined {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value[0];
-  return undefined;
-}
-
-export type HomeDailyContent = {
-  localDateKey: string;
-  quote: string;
-  story: string;
-  imageCompositedUrl: string;
-  imageSourceUrl: string;
-  unsplashAuthorName: string | null;
-  unsplashAuthorUrl: string | null;
-};
 
 export type ResolvedHomeDailyContent = {
   content: HomeDailyContent | null;
@@ -77,15 +69,29 @@ export async function resolveHomeDailyContent(
   };
 }
 
-export function buildDateHref(dateKey: string, sp: Record<string, string | string[] | undefined>) {
-  const params = new URLSearchParams();
-  params.set("date", dateKey);
+export async function fetchAllHomeDailyContent(): Promise<{
+  items: HomeDailyArchiveItem[];
+  byDate: Record<string, HomeDailyContent>;
+}> {
+  if (!process.env.DATABASE_URL) {
+    return { items: [], byDate: {} };
+  }
 
-  const subscribed = firstSearchParam(sp.subscribed);
-  if (subscribed) params.set("subscribed", subscribed);
+  const rows = await prisma.dailyContent.findMany({
+    orderBy: { localDateKey: "desc" },
+    select: selectFields,
+  });
 
-  const error = firstSearchParam(sp.error);
-  if (error) params.set("error", error);
+  const byDate: Record<string, HomeDailyContent> = {};
+  const items: HomeDailyArchiveItem[] = rows.map((row) => {
+    byDate[row.localDateKey] = row;
+    return {
+      localDateKey: row.localDateKey,
+      quote: row.quote,
+      imageCompositedUrl: row.imageCompositedUrl,
+    };
+  });
 
-  return `/?${params.toString()}`;
+  return { items, byDate };
 }
+

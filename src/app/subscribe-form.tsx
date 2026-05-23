@@ -41,21 +41,30 @@ export function SubscribeForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-6 flex w-full max-w-md flex-col gap-3">
+    <form onSubmit={onSubmit} className="mt-6 flex w-full max-w-md flex-col gap-4">
       <label className="text-sm font-medium text-zinc-700" htmlFor="email">
-        Email
+        Email address
       </label>
-      <input
-        id="email"
-        name="email"
-        type="email"
-        required
-        autoComplete="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-900/10 focus:ring-4"
-        placeholder="you@example.com"
-      />
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="h-12 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 shadow-sm outline-none transition-shadow placeholder:text-zinc-400 focus:border-violet-300 focus:ring-4 focus:ring-violet-500/15"
+          placeholder="you@example.com"
+        />
+        <button
+          type="submit"
+          disabled={status === "loading"}
+          className="inline-flex h-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 disabled:opacity-60"
+        >
+          {status === "loading" ? "Submitting…" : "Subscribe"}
+        </button>
+      </div>
       <input
         className="hidden"
         tabIndex={-1}
@@ -63,15 +72,9 @@ export function SubscribeForm() {
         name={honeypotName}
         aria-hidden="true"
       />
-      <button
-        type="submit"
-        disabled={status === "loading"}
-        className="inline-flex h-11 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-60"
-      >
-        {status === "loading" ? "Submitting…" : "Subscribe"}
-      </button>
       {message ? (
         <p
+          role="status"
           className={
             status === "error"
               ? "text-sm text-red-700"
